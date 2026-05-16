@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI内容策略师</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        /* 密码锁界面 */
+        .lock-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .lock-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 32px;
+            padding: 48px 40px;
+            width: 90%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .lock-icon { font-size: 64px; margin-bottom: 20px; }
+        .lock-card h2 { font-size: 28px; color: #333; margin-bottom: 12px; }
+        .lock-card p { color: #666; margin-bottom: 32px; }
+        
+        .password-input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 50px;
+            outline: none;
+            text-align: center;
+        }
+        
+        .password-input:focus { border-color: #667eea; }
+        
+        .unlock-btn {
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .error-msg { color: #e74c3c; font-size: 14px; margin-top: 16px; }
+        .loading-msg { color: #667eea; font-size: 14px; margin-top: 16px; }
+        
+        /* 主内容界面 */
+        .main-content {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+        
+        .main-content.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .user-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 50px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px 100px;
+        }
+        
+        .hero { text-align: center; margin-bottom: 60px; }
+        
+        .hero-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            font-size: 40px;
+        }
+        
+        .hero h1 { font-size: 48px; font-weight: 700; color: white; margin-bottom: 16px; }
+        .hero .subtitle { font-size: 20px; color: rgba(255,255,255,0.9); max-width: 600px; margin: 0 auto; }
+        .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 50px; font-size: 14px; color: white; margin-top: 20px; }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 40px;
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover { transform: translateY(-5px); }
+        .feature-icon { font-size: 32px; margin-bottom: 16px; }
+        .feature-card h3 { font-size: 20px; color: white; margin-bottom: 8px; }
+        .feature-card p { color: rgba(255,255,255,0.8); font-size: 14px; line-height: 1.5; }
+        .footer { margin-top: 60px; text-align: center; color: rgba(255,255,255,0.6); font-size: 14px; }
+        
+        @media (max-width: 768px) {
+            .container { padding: 40px 20px; }
+            .hero h1 { font-size: 32px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 密码锁界面 -->
+<div class="lock-screen" id="lockScreen">
+    <div class="lock-card">
+        <div class="lock-icon">🔐</div>
+        <h2>AI内容策略师</h2>
+        <p>请输入访问密码</p>
+        <input type="password" class="password-input" id="passwordInput" placeholder="请输入密码" autofocus>
+        <button class="unlock-btn" id="unlockBtn">解锁进入</button>
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="loading-msg" id="loadingMsg"></div>
+    </div>
+</div>
+
+<!-- 主内容界面 -->
+<div class="main-content" id="mainContent">
+    <div class="user-status">
+        <span>👤 已登录</span>
+        <button class="logout-btn" id="logoutBtn">退出</button>
+    </div>
+    
+    <div class="container">
+        <div class="hero">
+            <div class="hero-icon">🤖</div>
+            <h1>AI 内容策略师</h1>
+            <p class="subtitle">基于全网实时热点，为各行业商家自动生成内容策略报告<br>包含选题方向、文案金句、发布建议</p>
+            <div class="badge">💬 点击右下角开始对话 · 安全加密</div>
+        </div>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>精准选题方向</h3>
+                <p>基于行业热点和用户画像，智能推荐高潜力选题</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✨</div>
+                <h3>文案金句生成</h3>
+                <p>AI自动生成多版本优质文案，适配不同平台风格</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>发布建议优化</h3>
+                <p>智能推荐最佳发布时间和渠道组合</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            ⏱️ 报告生成约需3-5分钟 · 数据仅供参考<br>
+            Powered by Coze
+        </div>
+    </div>
+</div>
+
+<!-- Coze Chat SDK -->
+<script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.19/libs/cn/index.js"></script>
+
+<script>
+    // 后端地址（部署 Render 后修改）
+    const BACKEND_URL = "https://你的后端地址.onrender.com";
+    
+    // 登录状态
+    let isLoggedIn = false;
+    let authToken = null;  // 后端签发的临时 token，不是 Coze token
+    
+    async function verifyAndLogin() {
+        const password = document.getElementById('passwordInput').value;
+        const errorMsg = document.getElementById('errorMsg');
+        const loadingMsg = document.getElementById('loadingMsg');
+        
+        if (!password) {
+            errorMsg.textContent = '请输入密码';
+            return;
+        }
+        
+        errorMsg.textContent = '';
+        loadingMsg.textContent = '⏳ 验证中...';
+        document.getElementById('unlockBtn').disabled = true;
+        
+        try {
+            // 密码验证通过后端进行，不暴露在前端
+            const response = await fetch(`${BACKEND_URL}/api/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                authToken = data.auth_token;  // 后端签发的临时 token
+                sessionStorage.setItem('coze_auth_token', authToken);
+                sessionStorage.setItem('coze_logged_in', 'true');
+                showMainContent();
+                initCozeSDK();
+            } else {
+                errorMsg.textContent = '❌ 密码错误，请重试';
+                document.getElementById('passwordInput').value = '';
+                document.getElementById('passwordInput').focus();
+            }
+        } catch (error) {
+            errorMsg.textContent = '❌ 网络错误，请稍后重试';
+            console.error(error);
+        } finally {
+            loadingMsg.textContent = '';
+            document.getElementById('unlockBtn').disabled = false;
+        }
+    }
+    
+    function checkLogin() {
+        const loggedIn = sessionStorage.getItem('coze_logged_in') === 'true';
+        const savedToken = sessionStorage.getItem('coze_auth_token');
+        
+        if (loggedIn && savedToken) {
+            authToken = savedToken;
+            showMainContent();
+            initCozeSDK();
+        } else {
+            showLockScreen();
+        }
+    }
+    
+    function showMainContent() {
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('mainContent').classList.add('visible');
+    }
+    
+    function showLockScreen() {
+        document.getElementById('lockScreen').style.display = 'flex';
+        document.getElementById('mainContent').classList.remove('visible');
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('errorMsg').textContent = '';
+        authToken = null;
+    }
+    
+    function logout() {
+        sessionStorage.removeItem('coze_logged_in');
+        sessionStorage.removeItem('coze_auth_token');
+        window.location.reload();
+    }
+    
+    async function initCozeSDK() {
+        try {
+            // 通过后端获取 Coze token（后端验证 auth_token 后才会返回）
+            const response = await fetch(`${BACKEND_URL}/api/get_coze_token`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (!data.token) {
+                console.error('获取 Coze 令牌失败');
+                if (data.error === 'invalid_token') {
+                    logout();  // token 失效，重新登录
+                }
+                return;
+            }
+            
+            new CozeWebSDK.WebChatClient({
+                config: { bot_id: '7640106605937885224' },
+                componentProps: { title: 'AI内容策略师' },
+                auth: {
+                    type: 'token',
+                    token: data.token,
+                    onRefreshToken: async () => {
+                        const refreshRes = await fetch(`${BACKEND_URL}/api/get_coze_token`, {
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                        const refreshData = await refreshRes.json();
+                        return refreshData.token;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('初始化失败:', error);
+        }
+    }
+    
+    document.getElementById('unlockBtn').addEventListener('click', verifyAndLogin);
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') verifyAndLogin();
+    });
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    
+    checkLogin();
+</script>
+
+</body>
+</html>
